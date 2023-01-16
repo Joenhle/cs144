@@ -1,7 +1,7 @@
-#include "byte_stream.hh"
+#include "../libsponge/byte_stream.hh"
 #include "fsm_stream_reassembler_harness.hh"
-#include "stream_reassembler.hh"
-#include "util.hh"
+#include "../libsponge/stream_reassembler.hh"
+#include "../libsponge/util/util.hh"
 
 #include <exception>
 #include <iostream>

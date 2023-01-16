@@ -1,9 +1,9 @@
 #ifndef SPONGE_FSM_STREAM_REASSEMBLER_HARNESS_HH
 #define SPONGE_FSM_STREAM_REASSEMBLER_HARNESS_HH
 
-#include "byte_stream.hh"
-#include "stream_reassembler.hh"
-#include "util.hh"
+#include "../libsponge/byte_stream.hh"
+#include "../libsponge/stream_reassembler.hh"
+#include "../libsponge/util/util.hh"
 
 #include <exception>
 #include <iostream>
