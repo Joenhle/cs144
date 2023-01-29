@@ -35,6 +35,10 @@ void StreamReassembler::push_substring(const std::string &data, const uint64_t i
         }
         return push_substring(data.substr(_reassembled_index - index), _reassembled_index, eof);
     }
+	if (index + data.size() > _reassembled_index - _output.buffer_size() + _capacity) {
+		int len = index + data.size() - _reassembled_index + _output.buffer_size() - _capacity;
+		return push_substring(data.substr(0, data.length() - len), index, eof);
+	}
     push(index, data);
     merge();
     // send to bytestream
