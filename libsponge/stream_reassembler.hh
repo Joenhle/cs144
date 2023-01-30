@@ -42,6 +42,8 @@ class StreamReassembler {
     //!@{
     const ByteStream &stream_out() const { return _output; }
     ByteStream &stream_out() { return _output; }
+
+	uint64_t reassembled_index() const { return _reassembled_index; }
     //!@}
 
     //! The number of bytes in the substrings stored but not yet reassembled
