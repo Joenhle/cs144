@@ -7,7 +7,9 @@
 #include "wrapping_integers.hh"
 
 #include <functional>
+#include <algorithm>
 #include <queue>
+#include <deque>
 
 //! \brief The "sender" part of a TCP implementation.
 
@@ -23,14 +25,27 @@ class TCPSender {
     //! outbound queue of segments that the TCPSender wants sent
     std::queue<TCPSegment> _segments_out{};
 
+	std::deque<TCPSegment> _outstanding_segments{};
+	size_t _bytes_in_flight = 0;
+
     //! retransmission timer for the connection
-    unsigned int _initial_retransmission_timeout;
+    unsigned int _initial_retransmission_timeout = 0;
+
+	unsigned int _retransmission_timeout = 0;
+
+	size_t _retransmission_time = 0;
+
+	unsigned int _retransmission_count = 0;
 
     //! outgoing stream of bytes that have not yet been sent
     ByteStream _stream;
 
     //! the (absolute) sequence number for the next byte to be sent
-    uint64_t _next_seqno{0};
+    uint64_t _next_seqno = 0;
+
+	uint64_t _last_absolute_ackno = 0;
+
+	WrappingInt32 window[2] = {_isn, _isn+1};
 
   public:
     //! Initialize a TCPSender
@@ -87,6 +102,18 @@ class TCPSender {
     //! \brief relative seqno for the next byte to be sent
     WrappingInt32 next_seqno() const { return wrap(_next_seqno, _isn); }
     //!@}
+	
+private:
+	void outstanding_pushback(const TCPSegment& segment) {
+		_outstanding_segments.push_back(segment);
+		_bytes_in_flight += segment.length_in_sequence_space();
+	}
+	void outstanding_popfront() {
+		if (!_outstanding_segments.empty()) {
+			_bytes_in_flight -= _outstanding_segments.front().length_in_sequence_space();
+			_outstanding_segments.pop_front();
+		}
+	}
 };
 
 #endif  // SPONGE_LIBSPONGE_TCP_SENDER_HH
