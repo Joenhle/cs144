@@ -1,0 +1,2 @@
+/Library/Developer/CommandLineTools/usr/bin/ar qc libstream_copy.a CMakeFiles/stream_copy.dir/bidirectional_stream_copy.cc.o
+/Library/Developer/CommandLineTools/usr/bin/ranlib libstream_copy.a

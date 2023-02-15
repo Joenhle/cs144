@@ -45,6 +45,8 @@ class StreamReassembler {
 
 	uint64_t reassembled_index() const { return _reassembled_index; }
     //!@}
+	
+	uint64_t window_right() const { return _reassembled_index - _output.buffer_size() + _capacity; }
 
     //! The number of bytes in the substrings stored but not yet reassembled
     //!

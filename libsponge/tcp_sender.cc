@@ -61,7 +61,7 @@ void TCPSender::fill_window() {
 			}
 			_next_seqno = _next_seqno + num + payload_size;
 			outstanding_pushback(segment);	
-			segments_out().push(segment);
+			segment_out_push(segment);
 		} else {
 			break;
 		}
@@ -70,11 +70,12 @@ void TCPSender::fill_window() {
 
 //! \param ackno The remote receiver's ackno (acknowledgment number)
 //! \param window_size The remote receiver's advertised window size
-void TCPSender::ack_received(const WrappingInt32 ackno, const uint16_t window_size) {
+bool TCPSender::ack_received(const WrappingInt32 ackno, const uint16_t window_size) {
 	uint16_t ws = window_size;
 	auto absolute_ackno = unwrap(ackno, _isn, _last_absolute_ackno);
+	// out of window, invalid ackno
 	if (absolute_ackno > _next_seqno) {
-		return;
+		return false;
 	}
 	if (absolute_ackno > _last_absolute_ackno) {
 		_last_absolute_ackno = absolute_ackno;
@@ -82,6 +83,7 @@ void TCPSender::ack_received(const WrappingInt32 ackno, const uint16_t window_si
 		_retransmission_timeout = _initial_retransmission_timeout;
 		_retransmission_count = 0;
 	}
+	auto old_window_right = unwrap(window[1], _isn, _next_seqno);
 	window[0] = ackno;
 	window[1] = ackno + ws;
 	auto window_left_index = unwrap(window[0], _isn, _next_seqno);
@@ -94,19 +96,25 @@ void TCPSender::ack_received(const WrappingInt32 ackno, const uint16_t window_si
 			break;
 		}
 	}
+	if (window_left_index + window_size > old_window_right) {
+		fill_window();
+	}
+	return true;
 }
 
 //! \param[in] ms_since_last_tick the number of milliseconds since the last call to this method
 void TCPSender::tick(const size_t ms_since_last_tick) {
 	_retransmission_time += ms_since_last_tick;
 	if (_retransmission_time >= _retransmission_timeout) {
+		bool flag = false;
 		if (!_outstanding_segments.empty()) {
-			segments_out().push(_outstanding_segments.front());
+			segment_out_push(_outstanding_segments.front());
+			flag = true;
 		}
 		auto left = unwrap(window[0], _isn, _next_seqno);
 		auto right = unwrap(window[1], _isn, _next_seqno);
 		//window size is nonzero
-		if (right > left) {
+		if (flag && right > left) {
 			_retransmission_count += 1;
 			_retransmission_timeout *= 2;
 		}
@@ -118,8 +126,11 @@ unsigned int TCPSender::consecutive_retransmissions() const {
 	return _retransmission_count; 
 }
 
-void TCPSender::send_empty_segment() {
+void TCPSender::send_empty_segment(bool rst) {
 	TCPSegment segment;
+	if (rst) {
+		segment.header().rst = true;
+	}
 	segment.header().seqno = wrap(_next_seqno, _isn);
-	segments_out().push(segment);
+	segment_out_push(segment);
 }

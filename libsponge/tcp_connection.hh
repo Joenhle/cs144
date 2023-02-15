@@ -13,13 +13,18 @@ class TCPConnection {
     TCPReceiver _receiver{_cfg.recv_capacity};
     TCPSender _sender{_cfg.send_capacity, _cfg.rt_timeout, _cfg.fixed_isn};
 
-    //! outbound queue of segments that the TCPConnection wants sent
-    std::queue<TCPSegment> _segments_out{};
-
     //! Should the TCPConnection stay active (and keep ACKing)
     //! for 10 * _cfg.rt_timeout milliseconds after both streams have ended,
     //! in case the remote TCPConnection doesn't know we've received its whole stream?
     bool _linger_after_streams_finish{true};
+
+	size_t _now_time_ms{0};
+
+	size_t _last_segment_received_time_ms{0};
+
+	std::queue<TCPSegment> _segments_out{};
+
+	bool _active = true;
 
   public:
     //! \name "Input" interface for the writer
@@ -72,7 +77,21 @@ class TCPConnection {
     //! \note The owner or operating system will dequeue these and
     //! put each one into the payload of a lower-layer datagram (usually Internet datagrams (IP),
     //! but could also be user datagrams (UDP) or any other kind).
-    std::queue<TCPSegment> &segments_out() { return _segments_out; }
+	std::queue<TCPSegment> &segments_out() {
+		while(!_sender.segments_out().empty()) {
+			auto front = _sender.segments_out().front();
+			if (_receiver.ackno()) {
+				front.header().ack = true;
+				front.header().ackno = _receiver.ackno().value();
+				front.header().win = _receiver.window_size();
+			}
+			_sender.segments_out().pop();
+			_segments_out.push(front);
+		}
+		return _segments_out;
+	}
+
+	void unclean_shutdown(bool send_rst);
 
     //! \brief Is the connection still alive in any way?
     //! \returns `true` if either stream is still running or if the TCPConnection is lingering

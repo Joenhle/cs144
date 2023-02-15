@@ -10,16 +10,37 @@ void DUMMY_CODE(Targs &&... /* unused */) {}
 
 using namespace std;
 
-void TCPReceiver::segment_received(const TCPSegment &seg) {
+bool TCPReceiver::segment_received(const TCPSegment &seg) {
+	if (seg.length_in_sequence_space() == 0) {
+		return true;
+	}
 	if (seg.header().syn) {
+		if (_syn_flag) {
+			return false; //already get a syn, refuse other syn	
+		}
+		_syn_flag = true;
 		_isn = seg.header().seqno;
+	} else if (!_syn_flag) {
+		return false; //before get a syn, refuse any segments
+	}
+
+	if (seg.header().fin) {
+		if (_fin_flag) {
+			return false;
+		}
+		_fin_flag = true;
+	}
+	uint64_t ab_seqn = unwrap(seg.header().seqno, _isn.value(), _reassembler.reassembled_index());
+	int num = _reassembler.stream_out().eof() ? 1 : 0;
+	if (ab_seqn >= _reassembler.window_right() + 1 || ab_seqn + seg.length_in_sequence_space() <= _reassembler.reassembled_index() + 1 + num) {
+		return false;
 	}
 	if (_isn.has_value()) {
 		uint64_t index = unwrap(seg.header().seqno, _isn.value(), _reassembler.reassembled_index());
 		if (seg.header().syn) index += 1;
 		_reassembler.push_substring(std::string(seg.payload().str()), index - 1, seg.header().fin);	
 	}
-	
+	return true;
 }
 
 optional<WrappingInt32> TCPReceiver::ackno() const { 

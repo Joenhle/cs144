@@ -48,6 +48,9 @@ class TCPSender {
 	WrappingInt32 window[2] = {_isn, _isn+1};
 
   public:
+
+	WrappingInt32 isn(){ return _isn; }
+
     //! Initialize a TCPSender
     TCPSender(const size_t capacity = TCPConfig::DEFAULT_CAPACITY,
               const uint16_t retx_timeout = TCPConfig::TIMEOUT_DFLT,
@@ -63,10 +66,10 @@ class TCPSender {
     //!@{
 
     //! \brief A new acknowledgment was received
-    void ack_received(const WrappingInt32 ackno, const uint16_t window_size);
+    bool ack_received(const WrappingInt32 ackno, const uint16_t window_size);
 
     //! \brief Generate an empty-payload segment (useful for creating empty ACK segments)
-    void send_empty_segment();
+    void send_empty_segment(bool rst = false);
 
     //! \brief create and send segments to fill as much of the window as possible
     void fill_window();
@@ -113,6 +116,9 @@ private:
 			_bytes_in_flight -= _outstanding_segments.front().length_in_sequence_space();
 			_outstanding_segments.pop_front();
 		}
+	}
+	void segment_out_push(TCPSegment& segment) {
+		segments_out().push(segment);
 	}
 };
 
